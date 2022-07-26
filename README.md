@@ -1,3 +1,13 @@
 # ContextoBot
-IA to play the game https://contexto.me/
-A crawler that uses spacy library (https://spacy.io/) to find similar words and finish the game
+AI to play the game https://contexto.me/
+
+A crawler using selenium library (https://selenium-python.readthedocs.io/) and spaCy library (https://spacy.io/) to find words in a same context and find the key term to finish the game
+
+#1 Library dependencies:
+You need to install the following libraries: Selenium, spaCy, Numpy, and maybe another one that you do not have
+
+#2 Downloads: You need to download the chrome driver (https://chromedriver.chromium.org/downloads) and put it in the path of "DRIVER_PATH" (you may change it if you want)
+
+It is needed to download the "pt_core_news_lg" model, the site https://spacy.io/models/pt shows how to download it
+
+#3 Run it and enjoy :)
