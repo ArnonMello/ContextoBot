@@ -16,5 +16,6 @@ It is needed to download the "pt_core_news_lg" model, the site https://spacy.io/
 #ToDo:
 1- Find similar words from a vector of words
 2- Remove every similar word with the same radical, that leads to try the "same word" again and again (need to test)
-3- filter words with stranges symbols (@%$#!*)
-
+3- filter words with stranges symbols (@%$#!)
+4- Remove plural, check it
+5- Set verb tense to infitive, check it
