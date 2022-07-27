@@ -34,7 +34,6 @@ global driver
 global inputElement
 
 
-
 class WordInfo:
   def __init__(self, word, score):
     self.word = word
@@ -59,13 +58,6 @@ def clickAndWaitXPath(xPath):
   return element
 
 
-def addWordToProcess(wordInfo):
-  if wordInfo.word in processedWords:
-    return
-  
-  wordsToProcess.put(wordInfo)
-
-
 def getInputAndSetup():
   global driver
   global inputElement
@@ -88,7 +80,7 @@ def getInputAndSetup():
   return inputElement
 
 
-def getSimilarWords(word):
+def getSimilarWords(word, qtyWordsToGenerate = INITIAL_QTY_WORDS_TO_GENERATE):
   if(qtyWordsToGenerate == 0):
     return []
   ms = nlp.vocab.vectors.most_similar(np.asarray([nlp.vocab.vectors[nlp.vocab.strings[word]]]), n=qtyWordsToGenerate)
@@ -125,7 +117,8 @@ def generateAndGuessSimilarWords(wordInfo):
   if wordInfo.word in processedWords:
     return
   
-  similarWords = getSimilarWords(wordInfo.word)
+  qtyWordsToGenerate = min(100, max(1, int(10000/(wordInfo.score))))
+  similarWords = getSimilarWords(wordInfo.word, qtyWordsToGenerate)
   processedWords.add(wordInfo.word)
 
   for similarWord in similarWords:
