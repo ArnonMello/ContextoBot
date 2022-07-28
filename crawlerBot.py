@@ -10,10 +10,10 @@ from selenium.webdriver.common.keys import Keys
 
 nlp = spacy.load("pt_core_news_lg")
 
-INITIAL_QTY_WORDS_TO_GENERATE = 200
+INITIAL_QTY_WORDS_TO_GENERATE = 100
 INITIAL_SCORE = 500
 QTY_WORDS_TO_GET_MEAN = 5
-NUMBER_PAST_GAME = 2
+NUMBER_PAST_GAME = 6
 MAX_SCORE_DIFFERENCE = 100
 DRIVER_PATH = r"C:\chromedriver.exe"
 
@@ -171,6 +171,7 @@ def main():
   while True:
     toGenerateWordsInfo = getWordsInfoToGenerateMean()
     generateAndGuessSimilarWords(toGenerateWordsInfo)
+    guessedWordsInfo.get()
 
   time.sleep(1000)
 
