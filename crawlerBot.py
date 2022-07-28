@@ -10,16 +10,18 @@ from selenium.webdriver.common.keys import Keys
 
 nlp = spacy.load("pt_core_news_lg")
 
-INITIAL_QTY_WORDS_TO_GENERATE = 20
+INITIAL_QTY_WORDS_TO_GENERATE = 200
 INITIAL_SCORE = 500
-NUMBER_PAST_GAME = 5
+QTY_WORDS_TO_GET_MEAN = 5
+NUMBER_PAST_GAME = 2
+MAX_SCORE_DIFFERENCE = 100
 DRIVER_PATH = r"C:\chromedriver.exe"
 
 INITIAL_WORDS = ["cor", "flor", "fruta", "luz", "vida", "família", "computador", "memória", "sol", "rocha", "mente", "aceitar", "ganhar", "loucura", "pessoa", "cabelo", "matemática", "língua"]
 
-processedWords = set()
+processedSetWordsInfo = set()
 guessedWords = set()
-wordsToProcess = queue.PriorityQueue()
+guessedWordsInfo = queue.PriorityQueue()
 
 qtyWordsToGenerate = INITIAL_QTY_WORDS_TO_GENERATE
 currentScore = INITIAL_SCORE
@@ -29,6 +31,7 @@ xPathPastGames = '//*[@id="root"]/div/div[1]/div[2]/div[2]/button[4]'
 xPathInput = '//*[@id="root"]/div/form/input'
 xPathGuessedScore = '//*[@id="root"]/div/div[3]/div/div[2]/span[2]'
 xPathTentatives = '//*[@id="root"]/div/div[2]/span[4]'
+xPathGuessedWord = '//*[@id="root"]/div/div[3]/div/div[2]/span[1]'
 
 global driver
 global inputElement
@@ -74,16 +77,25 @@ def getInputAndSetup():
 
   for word in INITIAL_WORDS:
     score = getWordScore(word)
-    wordInfo = WordInfo(word, score)
-    wordsToProcess.put(wordInfo)
+    # wordInfo = WordInfo(word, score)
+    # guessedWordsInfo.put(wordInfo)
 
   return inputElement
 
 
-def getSimilarWords(word, qtyWordsToGenerate = INITIAL_QTY_WORDS_TO_GENERATE):
+def getSimilarWords(wordsInfo, qtyWordsToGenerate = INITIAL_QTY_WORDS_TO_GENERATE):
   if(qtyWordsToGenerate == 0):
     return []
-  ms = nlp.vocab.vectors.most_similar(np.asarray([nlp.vocab.vectors[nlp.vocab.strings[word]]]), n=qtyWordsToGenerate)
+
+  size = len(nlp(wordsInfo[0].word).vector)
+  meanVector = [np.zeros((size))]
+  #todo:use statistics.mean
+  for wordInfo in wordsInfo:
+    vector = nlp(wordInfo.word).vector
+    meanVector += vector
+  meanVector = np.array(meanVector/len(wordsInfo))
+
+  ms = nlp.vocab.vectors.most_similar(meanVector, n=qtyWordsToGenerate)
   words = [nlp.vocab.strings[w] for w in ms [0][0]]
   words = [w for w in words if not search('-', str(w))]
   return words
@@ -94,6 +106,8 @@ def getWordScore(guessWord):
     return
   
   global inputElement
+  global driver
+
   inputElement.clear()
   time.sleep(0.1)
   inputElement.send_keys(guessWord)
@@ -102,9 +116,13 @@ def getWordScore(guessWord):
   time.sleep(0.4)
   guessedWords.add(guessWord)
 
+ 
+
   try:
+    guessWord = driver.find_element(By.XPATH, xPathGuessedWord).text
+    guessedWords.add(guessWord)
     guessedScore = int(driver.find_element(By.XPATH, xPathGuessedScore).text)
-    wordsToProcess.put(WordInfo(guessWord, guessedScore))
+    guessedWordsInfo.put(WordInfo(guessWord, guessedScore))
     return guessedScore
 
   except Exception:
@@ -113,30 +131,46 @@ def getWordScore(guessWord):
   return False
 
 
-def generateAndGuessSimilarWords(wordInfo):
-  if wordInfo.word in processedWords:
+def getWordsInfoToGenerateMean():
+  wordsInfoToGenerateMean = []
+  for i in range(QTY_WORDS_TO_GET_MEAN):
+    wordsInfoToGenerateMean.append(guessedWordsInfo.get())
+  
+  for wordInfo in wordsInfoToGenerateMean:
+    guessedWordsInfo.put(wordInfo)
+
+  
+  bestScore = wordsInfoToGenerateMean[0].score
+  wordsInfoToGenerateMean = [goi for goi in wordsInfoToGenerateMean if goi.score - bestScore < MAX_SCORE_DIFFERENCE]
+  
+  return tuple(wordsInfoToGenerateMean)
+
+def generateAndGuessSimilarWords(toGenerateWordsInfo):
+  if toGenerateWordsInfo in processedSetWordsInfo:
     return
   
-  qtyWordsToGenerate = min(100, max(1, int(10000/(wordInfo.score))))
-  similarWords = getSimilarWords(wordInfo.word, qtyWordsToGenerate)
-  processedWords.add(wordInfo.word)
+  # qtyWordsToGenerate = min(100, max(1, int(10000/(toGenerateWordsInfo.score))))
+  similarWords = getSimilarWords(toGenerateWordsInfo, qtyWordsToGenerate)
+  processedSetWordsInfo.add(toGenerateWordsInfo)
 
   for similarWord in similarWords:
     getWordScore(similarWord)
 
     #note: At this point it is possible to have a new word with score less than wordInfo.score, so lets check it at priorityQueue
-    newWordInfo = wordsToProcess.queue[0]
-    if(newWordInfo.score < wordInfo.score):
-      wordsToProcess.get()
-      generateAndGuessSimilarWords(newWordInfo)
+    newGuessedWordsInfo = getWordsInfoToGenerateMean()
+    newSetScore = sum([wi.score for wi in newGuessedWordsInfo])
+    currSetScore = sum([wi.score for wi in toGenerateWordsInfo])
+    if(newSetScore < currSetScore or len(newGuessedWordsInfo) > len(toGenerateWordsInfo)):
+      # guessedWordsInfo.get()
+      generateAndGuessSimilarWords(newGuessedWordsInfo)
 
     
 def main():   
   getInputAndSetup()
 
   while True:
-    wordInfo = wordsToProcess.get()
-    generateAndGuessSimilarWords(wordInfo)
+    toGenerateWordsInfo = getWordsInfoToGenerateMean()
+    generateAndGuessSimilarWords(toGenerateWordsInfo)
 
   time.sleep(1000)
 
