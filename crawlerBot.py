@@ -10,14 +10,14 @@ from selenium.webdriver.common.keys import Keys
 
 nlp = spacy.load("pt_core_news_lg")
 
-INITIAL_QTY_WORDS_TO_GENERATE = 100
+INITIAL_QTY_WORDS_TO_GENERATE = 120
 INITIAL_SCORE = 500
-QTY_WORDS_TO_GET_MEAN = 5
-NUMBER_PAST_GAME = 6
+QTY_WORDS_TO_GET_MEAN = 6
+NUMBER_PAST_GAME = 5
 MAX_SCORE_DIFFERENCE = 100
 DRIVER_PATH = r"C:\chromedriver.exe"
 
-INITIAL_WORDS = ["cor", "flor", "fruta", "luz", "vida", "família", "computador", "memória", "sol", "rocha", "mente", "aceitar", "ganhar", "loucura", "pessoa", "cabelo", "matemática", "língua"]
+INITIAL_WORDS = ["comida", 'local', 'corpo', 'métrica', 'sol', 'ciência', 'animal', 'justiça', 'humano', 'transporte']
 
 processedSetWordsInfo = set()
 guessedWords = set()
@@ -83,17 +83,22 @@ def getInputAndSetup():
   return inputElement
 
 
-def getSimilarWords(wordsInfo, qtyWordsToGenerate = INITIAL_QTY_WORDS_TO_GENERATE):
-  if(qtyWordsToGenerate == 0):
-    return []
+def getSimilarWords(wordsInfo):
+  # if(qtyWordsToGenerate == 0):
+  #   return []
+
+  # qtyWordsToGenerate = min(300, max(10, int(15000/(wordsInfo[0].score))))
 
   size = len(nlp(wordsInfo[0].word).vector)
   meanVector = [np.zeros((size))]
+  totalWeight = 0
   #todo:use statistics.mean
   for wordInfo in wordsInfo:
+    weight = 500/wordInfo.score
+    totalWeight += weight
     vector = nlp(wordInfo.word).vector
-    meanVector += vector
-  meanVector = np.array(meanVector/len(wordsInfo))
+    meanVector += (vector*weight)
+  meanVector = np.array(meanVector/totalWeight)
 
   ms = nlp.vocab.vectors.most_similar(meanVector, n=qtyWordsToGenerate)
   words = [nlp.vocab.strings[w] for w in ms [0][0]]
@@ -133,7 +138,7 @@ def getWordScore(guessWord):
 
 def getWordsInfoToGenerateMean():
   wordsInfoToGenerateMean = []
-  for i in range(QTY_WORDS_TO_GET_MEAN):
+  for i in range(min(QTY_WORDS_TO_GET_MEAN, len(guessedWordsInfo.queue))):
     wordsInfoToGenerateMean.append(guessedWordsInfo.get())
   
   for wordInfo in wordsInfoToGenerateMean:
@@ -142,7 +147,7 @@ def getWordsInfoToGenerateMean():
   
   bestScore = wordsInfoToGenerateMean[0].score
   wordsInfoToGenerateMean = [goi for goi in wordsInfoToGenerateMean if goi.score - bestScore < MAX_SCORE_DIFFERENCE]
-  
+
   return tuple(wordsInfoToGenerateMean)
 
 def generateAndGuessSimilarWords(toGenerateWordsInfo):
@@ -150,7 +155,7 @@ def generateAndGuessSimilarWords(toGenerateWordsInfo):
     return
   
   # qtyWordsToGenerate = min(100, max(1, int(10000/(toGenerateWordsInfo.score))))
-  similarWords = getSimilarWords(toGenerateWordsInfo, qtyWordsToGenerate)
+  similarWords = getSimilarWords(toGenerateWordsInfo)
   processedSetWordsInfo.add(toGenerateWordsInfo)
 
   for similarWord in similarWords:
