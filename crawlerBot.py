@@ -13,7 +13,7 @@ nlp = spacy.load("pt_core_news_lg")
 INITIAL_QTY_WORDS_TO_GENERATE = 120
 INITIAL_SCORE = 500
 QTY_WORDS_TO_GET_MEAN = 6
-NUMBER_PAST_GAME = 5
+NUMBER_PAST_GAME = 142
 MAX_SCORE_DIFFERENCE = 100
 DRIVER_PATH = r"C:\chromedriver.exe"
 
@@ -32,6 +32,8 @@ xPathInput = '//*[@id="root"]/div/form/input'
 xPathGuessedScore = '//*[@id="root"]/div/div[3]/div/div[2]/span[2]'
 xPathTentatives = '//*[@id="root"]/div/div[2]/span[4]'
 xPathGuessedWord = '//*[@id="root"]/div/div[3]/div/div[2]/span[1]'
+xPathTodayGame = '//*[@id="root"]/div/div[2]/span[2]'
+xPathAcceptCookies = '//*[@id="root"]/div/div[6]/div/div[2]/button'
 
 global driver
 global inputElement
@@ -54,11 +56,16 @@ def getXPathPastGame(number):
 
 def clickAndWaitXPath(xPath):
   global driver
-  element = driver.find_element(By.XPATH, xPath)
-  time.sleep(0.2)
-  element.click()
-  time.sleep(0.2)
-  return element
+  try:
+    element = driver.find_element(By.XPATH, xPath)
+    time.sleep(0.2)
+    element.click()
+    time.sleep(0.2)
+    return element
+  except Exception:
+    time.sleep(0.2)
+
+  return False
 
 
 def getInputAndSetup():
@@ -71,7 +78,15 @@ def getInputAndSetup():
 
   clickAndWaitXPath(xPathOptions)
   clickAndWaitXPath(xPathPastGames)
-  clickAndWaitXPath(getXPathPastGame(NUMBER_PAST_GAME))
+
+  todayGame = driver.find_element(By.XPATH, xPathTodayGame).text
+  todayGame = int(todayGame.replace('#', ''))
+  numeberToPastGame = todayGame - NUMBER_PAST_GAME + 1
+
+  while clickAndWaitXPath(getXPathPastGame(numeberToPastGame)) == False:
+    clickAndWaitXPath(xPathAcceptCookies)
+    time.sleep(0.2)
+  
   inputElement = driver.find_element(By.XPATH, xPathInput)
   time.sleep(2)
 
