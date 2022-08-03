@@ -13,7 +13,7 @@ nlp = spacy.load("pt_core_news_lg")
 INITIAL_QTY_WORDS_TO_GENERATE = 120
 INITIAL_SCORE = 500
 QTY_WORDS_TO_GET_MEAN = 6
-NUMBER_PAST_GAME = 142
+NUMBER_PAST_GAME = 160
 MAX_SCORE_DIFFERENCE = 100
 DRIVER_PATH = r"C:\chromedriver.exe"
 
@@ -30,14 +30,17 @@ xPathOptions = '//*[@id="root"]/div/div[1]/div[2]/button'
 xPathPastGames = '//*[@id="root"]/div/div[1]/div[2]/div[2]/button[4]'
 xPathInput = '//*[@id="root"]/div/form/input'
 xPathGuessedScore = '//*[@id="root"]/div/div[3]/div/div[2]/span[2]'
-xPathTentatives = '//*[@id="root"]/div/div[2]/span[4]'
-xPathGuessedWord = '//*[@id="root"]/div/div[3]/div/div[2]/span[1]'
+xPathGuessedScoreAfterWin = '//*[@id="root"]/div/div[6]/div/div[2]/span[2]'
+xPathTentativesAfterWin = '//*[@id="root"]/div/div[5]/span[4]'
+xPathGuessedWord = '//*[@id="root"]/div/div[3]/div/div[2]/span[1]' 
+xPathGuessedWordAfterWin = '//*[@id="root"]/div/div[6]/div/div[2]/span[1]'
 xPathTodayGame = '//*[@id="root"]/div/div[2]/span[2]'
-xPathAcceptCookies = '//*[@id="root"]/div/div[6]/div/div[2]/button'
+xPathAcceptCookies = '//*[@id="root"]/div/div[5]/div/div[2]/button'
 
 global driver
 global inputElement
-
+global haveWonGame
+global startTime
 
 class WordInfo:
   def __init__(self, word, score):
@@ -49,6 +52,13 @@ class WordInfo:
       return self.word < other.word
 
     return self.score < other.score
+
+class gameInfo:
+  def __init__(self, gameNumber, numberTentatives, totalTime, correctWord):
+    self.gameNumber = gameNumber
+    self.numberTentatives = numberTentatives
+    self.totalTime = totalTime
+    self.correctWord = correctWord
 
 def getXPathPastGame(number):
   return str('//*[@id="root"]/div/div[5]/div/div[2]/div/div/div[{}]/button').format(number)
@@ -68,23 +78,33 @@ def clickAndWaitXPath(xPath):
   return False
 
 
-def getInputAndSetup():
+def getInputAndSetup(gameNumber):
   global driver
   global inputElement
+  global haveWonGame
+  global startTime
+
+  startTime = time.time()
+
+  haveWonGame = False
+
+  processedSetWordsInfo.clear()
+  guessedWords.clear()
+  guessedWordsInfo.queue.clear()
 
   driver = webdriver.Chrome(DRIVER_PATH)
   driver.get('https://contexto.me/')
-  time.sleep(2)
+  time.sleep(5)
 
+  clickAndWaitXPath(xPathAcceptCookies)
   clickAndWaitXPath(xPathOptions)
   clickAndWaitXPath(xPathPastGames)
 
   todayGame = driver.find_element(By.XPATH, xPathTodayGame).text
   todayGame = int(todayGame.replace('#', ''))
-  numeberToPastGame = todayGame - NUMBER_PAST_GAME + 1
+  numeberToPastGame = 1 if gameNumber == 0 else todayGame - gameNumber + 1
 
   while clickAndWaitXPath(getXPathPastGame(numeberToPastGame)) == False:
-    clickAndWaitXPath(xPathAcceptCookies)
     time.sleep(0.2)
   
   inputElement = driver.find_element(By.XPATH, xPathInput)
@@ -127,6 +147,7 @@ def getWordScore(guessWord):
   
   global inputElement
   global driver
+  global haveWonGame
 
   inputElement.clear()
   time.sleep(0.1)
@@ -140,13 +161,28 @@ def getWordScore(guessWord):
 
   try:
     guessWord = driver.find_element(By.XPATH, xPathGuessedWord).text
-    guessedWords.add(guessWord)
     guessedScore = int(driver.find_element(By.XPATH, xPathGuessedScore).text)
+    guessedWords.add(guessWord)
     guessedWordsInfo.put(WordInfo(guessWord, guessedScore))
+
     return guessedScore
 
   except Exception:
+    try:
+      guessWord = driver.find_element(By.XPATH, xPathGuessedWordAfterWin).text
+      guessedScore = int(driver.find_element(By.XPATH, xPathGuessedScoreAfterWin).text)
+      guessedWords.add(guessWord)
+      guessedWordsInfo.put(WordInfo(guessWord, guessedScore))
+
+      if(guessedScore == 1):
+        haveWonGame = True
+        return guessedScore
+    except Exception as e:
+      #print(e)
+      time.sleep(0.1)
+    
     time.sleep(0.1)
+    
 
   return False
 
@@ -174,6 +210,9 @@ def generateAndGuessSimilarWords(toGenerateWordsInfo):
   processedSetWordsInfo.add(toGenerateWordsInfo)
 
   for similarWord in similarWords:
+    if haveWonGame:
+      break
+
     getWordScore(similarWord)
 
     #note: At this point it is possible to have a new word with score less than wordInfo.score, so lets check it at priorityQueue
@@ -184,15 +223,34 @@ def generateAndGuessSimilarWords(toGenerateWordsInfo):
       # guessedWordsInfo.get()
       generateAndGuessSimilarWords(newGuessedWordsInfo)
 
-    
-def main():   
-  getInputAndSetup()
+def playGame(gameNumber = NUMBER_PAST_GAME):
+  global guessedWordsInfo
+  
+  getInputAndSetup(gameNumber)
 
-  while True:
+  while haveWonGame == False:
     toGenerateWordsInfo = getWordsInfoToGenerateMean()
     generateAndGuessSimilarWords(toGenerateWordsInfo)
     guessedWordsInfo.get()
 
-  time.sleep(1000)
+  totalTentatives = int(driver.find_element(By.XPATH, xPathTentativesAfterWin).text)
 
-main()
+  endTime = time.time()
+  totalTime = endTime - startTime
+  correctWord = guessedWordsInfo.get().word
+  print(gameNumber, totalTentatives, totalTime, correctWord)
+  
+  return gameInfo(gameNumber, totalTentatives, totalTime, correctWord)
+    
+def main():   
+  records = open("records.txt", 'w')
+  records.write('gameNumber NumberTentatives totalTime correctWord\n')
+
+  for i in reversed(range(NUMBER_PAST_GAME+1)):
+    records = open("records.txt", 'a')
+    gameInfo = playGame(i)
+    records.write('{} {} {} {}\n'.format(gameInfo.gameNumber, gameInfo.numberTentatives, gameInfo.totalTime, gameInfo.correctWord))
+    records.close()
+
+if __name__ == "__main__":
+  main()
