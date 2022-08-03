@@ -102,9 +102,9 @@ def getInputAndSetup(gameNumber):
 
   todayGame = driver.find_element(By.XPATH, xPathTodayGame).text
   todayGame = int(todayGame.replace('#', ''))
-  numeberToPastGame = 1 if gameNumber == 0 else todayGame - gameNumber + 1
+  numberToPastGame = 1 if gameNumber == 0 else todayGame - gameNumber + 1
 
-  while clickAndWaitXPath(getXPathPastGame(numeberToPastGame)) == False:
+  while clickAndWaitXPath(getXPathPastGame(numberToPastGame)) == False:
     time.sleep(0.2)
   
   inputElement = driver.find_element(By.XPATH, xPathInput)
