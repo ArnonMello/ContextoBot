@@ -1,23 +1,23 @@
-import queue
-import time
-from re import search
-
 import numpy as np
+import queue
 import spacy
+import time
+
+from re import search
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 nlp = spacy.load("pt_core_news_lg")
 
-INITIAL_QTY_WORDS_TO_GENERATE = 120
+INITIAL_QTY_WORDS_TO_GENERATE = 100
 INITIAL_SCORE = 500
-QTY_WORDS_TO_GET_MEAN = 6
-NUMBER_PAST_GAME = 160
+QTY_WORDS_TO_GET_MEAN = 8
+NUMBER_PAST_GAME = 161
 MAX_SCORE_DIFFERENCE = 100
 DRIVER_PATH = r"C:\chromedriver.exe"
 
-INITIAL_WORDS = ["comida", 'local', 'corpo', 'métrica', 'sol', 'ciência', 'animal', 'justiça', 'humano', 'transporte']
+INITIAL_WORDS = ["comida", 'local', 'corpo', 'métrica', 'sol', 'ciência', 'animal', 'justiça', 'humano', 'transporte', 'vestir']
 
 processedSetWordsInfo = set()
 guessedWords = set()
@@ -111,22 +111,17 @@ def getInputAndSetup(gameNumber):
   time.sleep(2)
 
   for word in INITIAL_WORDS:
-    score = getWordScore(word)
-    # wordInfo = WordInfo(word, score)
-    # guessedWordsInfo.put(wordInfo)
+    getWordScore(word)
 
   return inputElement
 
 
 def getSimilarWords(wordsInfo):
-  # if(qtyWordsToGenerate == 0):
-  #   return []
-
-  # qtyWordsToGenerate = min(300, max(10, int(15000/(wordsInfo[0].score))))
 
   size = len(nlp(wordsInfo[0].word).vector)
   meanVector = [np.zeros((size))]
   totalWeight = 0
+
   #todo:use statistics.mean
   for wordInfo in wordsInfo:
     weight = 500/wordInfo.score
@@ -149,17 +144,15 @@ def getWordScore(guessWord):
   global driver
   global haveWonGame
 
-  inputElement.clear()
-  time.sleep(0.1)
-  inputElement.send_keys(guessWord)
-  time.sleep(0.1)
-  inputElement.send_keys(Keys.ENTER)
-  time.sleep(0.4)
-  guessedWords.add(guessWord)
-
- 
-
   try:
+    inputElement.clear()
+    time.sleep(0.1)
+    inputElement.send_keys(guessWord)
+    time.sleep(0.1)
+    inputElement.send_keys(Keys.ENTER)
+    time.sleep(0.4)
+
+    guessedWords.add(guessWord)
     guessWord = driver.find_element(By.XPATH, xPathGuessedWord).text
     guessedScore = int(driver.find_element(By.XPATH, xPathGuessedScore).text)
     guessedWords.add(guessWord)
@@ -177,8 +170,7 @@ def getWordScore(guessWord):
       if(guessedScore == 1):
         haveWonGame = True
         return guessedScore
-    except Exception as e:
-      #print(e)
+    except Exception:
       time.sleep(0.1)
     
     time.sleep(0.1)
@@ -189,7 +181,7 @@ def getWordScore(guessWord):
 
 def getWordsInfoToGenerateMean():
   wordsInfoToGenerateMean = []
-  for i in range(min(QTY_WORDS_TO_GET_MEAN, len(guessedWordsInfo.queue))):
+  for _ in range(min(QTY_WORDS_TO_GET_MEAN, len(guessedWordsInfo.queue))):
     wordsInfoToGenerateMean.append(guessedWordsInfo.get())
   
   for wordInfo in wordsInfoToGenerateMean:
@@ -205,7 +197,6 @@ def generateAndGuessSimilarWords(toGenerateWordsInfo):
   if toGenerateWordsInfo in processedSetWordsInfo:
     return
   
-  # qtyWordsToGenerate = min(100, max(1, int(10000/(toGenerateWordsInfo.score))))
   similarWords = getSimilarWords(toGenerateWordsInfo)
   processedSetWordsInfo.add(toGenerateWordsInfo)
 
@@ -220,7 +211,6 @@ def generateAndGuessSimilarWords(toGenerateWordsInfo):
     newSetScore = sum([wi.score for wi in newGuessedWordsInfo])
     currSetScore = sum([wi.score for wi in toGenerateWordsInfo])
     if(newSetScore < currSetScore or len(newGuessedWordsInfo) > len(toGenerateWordsInfo)):
-      # guessedWordsInfo.get()
       generateAndGuessSimilarWords(newGuessedWordsInfo)
 
 def playGame(gameNumber = NUMBER_PAST_GAME):
