@@ -15,9 +15,10 @@ INITIAL_SCORE = 500
 QTY_WORDS_TO_GET_MEAN = 8
 NUMBER_PAST_GAME = 161
 MAX_SCORE_DIFFERENCE = 100
+MAXIMUM_TENTATIVES = 1500
 DRIVER_PATH = r"C:\chromedriver.exe"
 
-INITIAL_WORDS = ["comida", 'local', 'corpo', 'métrica', 'sol', 'ciência', 'animal', 'justiça', 'humano', 'transporte', 'vestir']
+INITIAL_WORDS = ["comida", 'local', 'corpo', 'métrica', 'sol', 'ciência', 'animal', 'justiça', 'humano', 'transporte', 'tratamento']
 
 processedSetWordsInfo = set()
 guessedWords = set()
@@ -31,6 +32,7 @@ xPathPastGames = '//*[@id="root"]/div/div[1]/div[2]/div[2]/button[4]'
 xPathInput = '//*[@id="root"]/div/form/input'
 xPathGuessedScore = '//*[@id="root"]/div/div[3]/div/div[2]/span[2]'
 xPathGuessedScoreAfterWin = '//*[@id="root"]/div/div[6]/div/div[2]/span[2]'
+xPathTentatives = '//*[@id="root"]/div/div[2]/span[4]'
 xPathTentativesAfterWin = '//*[@id="root"]/div/div[5]/span[4]'
 xPathGuessedWord = '//*[@id="root"]/div/div[3]/div/div[2]/span[1]' 
 xPathGuessedWordAfterWin = '//*[@id="root"]/div/div[6]/div/div[2]/span[1]'
@@ -39,8 +41,9 @@ xPathAcceptCookies = '//*[@id="root"]/div/div[5]/div/div[2]/button'
 
 global driver
 global inputElement
-global haveWonGame
+global haveWonOrGaveUpGame
 global startTime
+global maximumTentatives
 
 class WordInfo:
   def __init__(self, word, score):
@@ -78,15 +81,18 @@ def clickAndWaitXPath(xPath):
   return False
 
 
-def getInputAndSetup(gameNumber):
+def getInputAndSetup(gameNumber, maxTentatives):
   global driver
   global inputElement
-  global haveWonGame
+  global haveWonOrGaveUpGame
   global startTime
+  global maximumTentatives
+
+  maximumTentatives = maxTentatives
 
   startTime = time.time()
 
-  haveWonGame = False
+  haveWonOrGaveUpGame = False
 
   processedSetWordsInfo.clear()
   guessedWords.clear()
@@ -142,7 +148,8 @@ def getWordScore(guessWord):
   
   global inputElement
   global driver
-  global haveWonGame
+  global haveWonOrGaveUpGame
+  global maximumTentatives
 
   try:
     inputElement.clear()
@@ -158,6 +165,10 @@ def getWordScore(guessWord):
     guessedWords.add(guessWord)
     guessedWordsInfo.put(WordInfo(guessWord, guessedScore))
 
+    numberTentatives = int(driver.find_element(By.XPATH, xPathTentatives).text)
+    if(numberTentatives > maximumTentatives):
+      haveWonOrGaveUpGame = True
+
     return guessedScore
 
   except Exception:
@@ -168,7 +179,7 @@ def getWordScore(guessWord):
       guessedWordsInfo.put(WordInfo(guessWord, guessedScore))
 
       if(guessedScore == 1):
-        haveWonGame = True
+        haveWonOrGaveUpGame = True
         return guessedScore
     except Exception:
       time.sleep(0.1)
@@ -201,7 +212,7 @@ def generateAndGuessSimilarWords(toGenerateWordsInfo):
   processedSetWordsInfo.add(toGenerateWordsInfo)
 
   for similarWord in similarWords:
-    if haveWonGame:
+    if haveWonOrGaveUpGame:
       break
 
     getWordScore(similarWord)
@@ -213,22 +224,29 @@ def generateAndGuessSimilarWords(toGenerateWordsInfo):
     if(newSetScore < currSetScore or len(newGuessedWordsInfo) > len(toGenerateWordsInfo)):
       generateAndGuessSimilarWords(newGuessedWordsInfo)
 
-def playGame(gameNumber = NUMBER_PAST_GAME):
+def playGame(gameNumber = NUMBER_PAST_GAME, maxTentatives = MAXIMUM_TENTATIVES):
   global guessedWordsInfo
+  global driver
   
-  getInputAndSetup(gameNumber)
+  getInputAndSetup(gameNumber, maxTentatives)
 
-  while haveWonGame == False:
+  while haveWonOrGaveUpGame == False:
     toGenerateWordsInfo = getWordsInfoToGenerateMean()
     generateAndGuessSimilarWords(toGenerateWordsInfo)
     guessedWordsInfo.get()
 
-  totalTentatives = int(driver.find_element(By.XPATH, xPathTentativesAfterWin).text)
+  totalTentatives = None
+  try:
+    int(driver.find_element(By.XPATH, xPathTentativesAfterWin).text)
+  except Exception:
+    totalTentatives = MAXIMUM_TENTATIVES
 
   endTime = time.time()
   totalTime = endTime - startTime
   correctWord = guessedWordsInfo.get().word
   print(gameNumber, totalTentatives, totalTime, correctWord)
+
+  driver.close()
   
   return gameInfo(gameNumber, totalTentatives, totalTime, correctWord)
     
