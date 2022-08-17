@@ -13,7 +13,7 @@ nlp = spacy.load("pt_core_news_lg")
 INITIAL_QTY_WORDS_TO_GENERATE = 100
 INITIAL_SCORE = 500
 QTY_WORDS_TO_GET_MEAN = 8
-NUMBER_PAST_GAME = 161
+NUMBER_PAST_GAME = 66
 MAX_SCORE_DIFFERENCE = 100
 MAXIMUM_TENTATIVES = 1500
 DRIVER_PATH = r"C:\chromedriver.exe"
@@ -237,9 +237,9 @@ def playGame(gameNumber = NUMBER_PAST_GAME, maxTentatives = MAXIMUM_TENTATIVES):
 
   totalTentatives = None
   try:
-    int(driver.find_element(By.XPATH, xPathTentativesAfterWin).text)
+    totalTentatives = int(driver.find_element(By.XPATH, xPathTentativesAfterWin).text)
   except Exception:
-    totalTentatives = MAXIMUM_TENTATIVES
+    totalTentatives = maxTentatives
 
   endTime = time.time()
   totalTime = endTime - startTime
@@ -251,14 +251,7 @@ def playGame(gameNumber = NUMBER_PAST_GAME, maxTentatives = MAXIMUM_TENTATIVES):
   return gameInfo(gameNumber, totalTentatives, totalTime, correctWord)
     
 def main():   
-  records = open("records.txt", 'w')
-  records.write('gameNumber NumberTentatives totalTime correctWord\n')
-
-  for i in reversed(range(NUMBER_PAST_GAME+1)):
-    records = open("records.txt", 'a')
-    gameInfo = playGame(i)
-    records.write('{} {} {} {}\n'.format(gameInfo.gameNumber, gameInfo.numberTentatives, gameInfo.totalTime, gameInfo.correctWord))
-    records.close()
+    gameInfo = playGame()
 
 if __name__ == "__main__":
   main()
