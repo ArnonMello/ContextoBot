@@ -7,6 +7,9 @@ from re import search
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service 
+from webdriver_manager.chrome import ChromeDriverManager
 
 nlp = spacy.load("pt_core_news_lg")
 
@@ -18,7 +21,7 @@ MAX_SCORE_DIFFERENCE = 100
 MAXIMUM_TENTATIVES = 1500
 DRIVER_PATH = r"C:\chromedriver.exe"
 
-INITIAL_WORDS = ["comida", 'local', 'corpo', 'métrica', 'sol', 'ciência', 'animal', 'justiça', 'humano', 'transporte', 'tratamento']
+INITIAL_WORDS = ["comida", 'local', 'corpo', 'métrica', 'sol', 'ciência', 'animal', 'justiça', 'humano', 'transporte', 'tratamento', 'música']
 
 processedSetWordsInfo = set()
 guessedWords = set()
@@ -29,14 +32,14 @@ currentScore = INITIAL_SCORE
 
 xPathOptions = '//*[@id="root"]/div/div[1]/div[2]/button'
 xPathPastGames = '//*[@id="root"]/div/div[1]/div[2]/div[2]/button[4]'
-xPathInput = '//*[@id="root"]/div/form/input'
-xPathGuessedScore = '//*[@id="root"]/div/div[3]/div/div[2]/span[2]'
+xPathInput = '/html/body/div[1]/div/main/form/input'
+xPathGuessedScore = '//*[@id="root"]/div/main/div[4]/div/div/div[2]/span[2]'
 xPathGuessedScoreAfterWin = '//*[@id="root"]/div/div[6]/div/div[2]/span[2]'
-xPathTentatives = '//*[@id="root"]/div/div[2]/span[4]'
+xPathTentatives = '/html/body/div[1]/div/main/div[3]/span[4]'
 xPathTentativesAfterWin = '//*[@id="root"]/div/div[5]/span[4]'
-xPathGuessedWord = '//*[@id="root"]/div/div[3]/div/div[2]/span[1]' 
+xPathGuessedWord = '/html/body/div[1]/div/main/div[4]/div/div/div[2]/span[1]' 
 xPathGuessedWordAfterWin = '//*[@id="root"]/div/div[6]/div/div[2]/span[1]'
-xPathTodayGame = '//*[@id="root"]/div/div[2]/span[2]'
+xPathTodayGame = '//*[@id="root"]/div/main/div[3]/span[2]'
 xPathAcceptCookies = '//*[@id="root"]/div/div[5]/div/div[2]/button'
 
 global driver
@@ -98,7 +101,11 @@ def getInputAndSetup(gameNumber, maxTentatives):
   guessedWords.clear()
   guessedWordsInfo.queue.clear()
 
-  driver = webdriver.Chrome(DRIVER_PATH)
+
+  options = Options()
+  options.add_experimental_option('excludeSwitches', ['enable-logging'])
+  driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options) 
+  # driver = webdriver.Chrome(DRIVER_PATH, options=options)
   driver.get('https://contexto.me/')
   time.sleep(5)
 
@@ -107,11 +114,12 @@ def getInputAndSetup(gameNumber, maxTentatives):
   clickAndWaitXPath(xPathPastGames)
 
   todayGame = driver.find_element(By.XPATH, xPathTodayGame).text
+
   todayGame = int(todayGame.replace('#', ''))
   numberToPastGame = 1 if gameNumber == 0 else todayGame - gameNumber + 1
 
-  while clickAndWaitXPath(getXPathPastGame(numberToPastGame)) == False:
-    time.sleep(0.2)
+  # while clickAndWaitXPath(getXPathPastGame(numberToPastGame)) == False:
+  #   time.sleep(0.2)
   
   inputElement = driver.find_element(By.XPATH, xPathInput)
   time.sleep(2)
